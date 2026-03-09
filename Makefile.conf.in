@@ -1,0 +1,120 @@
+#
+# (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
+#
+# for details see file COPYING.DOSEMU in the DOSEMU distribution
+#
+# Makefile.conf.in for DOSEMU
+#
+# This file is included by all Makefiles
+
+DOSBIN = dosdoor
+
+prefix:=@prefix@
+bindir:=@bindir@
+sysconfdir:=@sysconfdir@
+libdir:=@libdir@
+datarootdir:=@datarootdir@
+datadir:=@datadir@
+mandir:=@mandir@
+docdir:=@docdir@
+syshdimagedir:=@syshdimagedir@
+x11fontdir:=@x11fontdir@
+fdtarball:=@fdtarball@
+abs_top_srcdir:=@abs_top_srcdir@
+ifeq (0,${MAKELEVEL})
+    SUBDIR := $(subst $(shell cd $(top_builddir) && pwd)/src/,,$(shell pwd))
+    # don't use built-in rules and variables for faster builds
+    MAKEFLAGS += -rR
+endif
+PACKAGE_VERSION:=@PACKAGE_VERSION@
+RELEASE_DATE:=@RELEASE_DATE@
+
+@SET_MAKE@
+
+INCDIR:=@INCDIR@
+ifeq ("$(wildcard $(top_builddir)/*.ac)","$(top_builddir)/configure.ac")
+  top_srcdir:=$(top_builddir)
+  srcdir:=.
+else
+  top_srcdir:=$(abs_top_srcdir)
+  ifeq ("$(top_builddir)",".")
+    srcdir:=$(abs_top_srcdir)
+  else
+    srcdir:=$(abs_top_srcdir)/src/$(SUBDIR)
+  endif
+  INCDIR += -I${top_srcdir}/src/include 
+endif
+
+CFLAGS:=@CFLAGS@
+ASFLAGS:=
+CPPFLAGS:=@CPPFLAGS@ ${INCDIR}
+X_CPPFLAGS:=@X_CFLAGS@
+SLANGINC:=@SLANGINC@
+LDFLAGS:=@LDFLAGS@
+LIBS:=@LIBS@
+X_LIBS:=@X_LIBS@
+SLANGLIB:=@SLANGLIB@
+GPMLIB:=@GPMLIB@
+CC:=@CC@
+CPP:=@CPP@
+LD:=@CC@
+
+ifneq "@ASM_PEDANTIC@" ""
+ASM_PEDANTIC:=@ASM_PEDANTIC@
+endif
+
+YACC:=@YACC@
+# NOTE: we really need bison, yacc won't work any more
+#YACC=bison -y
+LEX:=@LEX@
+
+@X_SUPPORT@
+
+# This gets defined even if we chose via ./include/config.h NOT to
+# use the debugger
+DEBUGGER:=@DEBUGGER@
+
+@USE_MHPDBG@
+@USE_SBEMU@
+OPTIONALSUBDIRS := @OPTIONALSUBDIRS@
+PLUGINSUBDIRS := @PLUGINSUBDIRS@
+REQUIRED:=@REQUIRED@
+
+OS=@CONFIG_HOST@
+RANLIB:=@RANLIB@
+
+@ASPI_SUPPORT@
+@USE_DL_PLUGINS@
+@USE_SVGALIB@
+@USE_GPM@
+@USE_ALSA@
+ALSALIB:=@ALSALIB@
+@USE_SNDFILE@
+SNDFLIB:=@SNDFLIB@
+@USE_PTHREADS@
+@X86_EMULATOR@
+
+INSTALL:=@INSTALL@
+VPATH:=$(srcdir)
+REALTOPDIR:=$(top_srcdir)
+SRCPATH:=$(top_srcdir)/src
+DOSDOOR_VERSION:=$(shell cat $(top_srcdir)/VERSION 2>/dev/null || echo dev)
+THISVERSION:=build
+BINPATH:=$(top_builddir)/build
+PACKETNAME:=dosdoor-$(DOSDOOR_VERSION)
+
+CFLAGS += $(XXXCFLAGS)
+
+# On x86_64, the JIT code generator uses 32-bit register references that
+# truncate 64-bit pointers.  Building as non-PIE places the binary and
+# all globals in the low 4 GB where 32-bit addresses work correctly.
+ifeq ($(shell uname -m),x86_64)
+CFLAGS += -fno-pie
+LDFLAGS += -no-pie
+endif
+ifdef USE_DL_PLUGINS
+DL_CFLAGS:=-fPIC
+else
+LIBS:=$(LIBS) $(SLANGLIB) $(X_LIBS) $(GPMLIB) $(ALSALIB) $(SNDFLIB)
+-include $(top_builddir)/src/plugin/*/Makefile.conf
+endif

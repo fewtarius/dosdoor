@@ -1,0 +1,136 @@
+#
+# Makefile for dosdoor (Linux)
+# Based on dosemu 1.4.0
+#
+
+SYS = ../commands
+dosdoordir = $(datadir)/dosdoor
+
+#
+# CPU emulator (always enabled for dosdoor)
+#
+ifdef X86_EMULATOR
+XCPUEMU=emu-i386/simx86
+endif
+
+LIBSUBDIRS=base base/async \
+	arch/linux/async arch/linux/mapping \
+	base/misc base/dev/misc\
+	emu-i386 $(XCPUEMU) env env/video \
+	base/dev/pic dosext/dpmi dosext/mfs dosext/misc\
+	base/init base/serial base/bios \
+	$(PLUGINSUBDIRS)
+
+# call all libraries the name of the directory
+LIBS_ := $(subst /,_,$(LIBSUBDIRS))
+
+DOCS=
+
+###################################################################
+
+LIBPATH=lib
+
+default: version include/confpath.h doslib
+
+emu.o: emu.c
+
+$(BINPATH)/bin/$(DOSBIN): emu.o ${addsuffix .a,${addprefix lib/lib,$(LIBS_)}}
+	$(LD) $(LDFLAGS) -o $@ emu.o $(addprefix -L,$(LIBPATH)) \
+	   -Wl,--whole-archive $(addprefix -l, $(LIBS_)) -Wl,--no-whole-archive $(LIBS)
+	@nm $(BINPATH)/bin/$(DOSBIN) | grep -v '\(compiled\)\|\(\.o$$\)\|\( a \)' | \
+		sort > $(BINPATH)/bin/dosdoor.map
+	@ln -sf $(DOSBIN) $(BINPATH)/bin/dos
+
+bin: $(BINPATH)/bin/$(DOSBIN)
+
+# This recursive call seems to be necessary to deal with parallel makes.
+dosemu: $(LIBSUBDIRS)
+	@$(MAKE) bin
+
+DIRLIST=$(DOCS) $(LIBSUBDIRS) $(OPTIONALSUBDIRS)
+.PHONY:	dossubdirs optionalsubdirs docsubdirs dosemu bin
+.PHONY: $(DIRLIST)
+
+optionalsubdirs:	$(OPTIONALSUBDIRS)
+
+docsubdirs:	$(DOCS)
+
+$(DIRLIST):
+	@($(MAKE) SUBDIR:=$@ -C $@)
+
+version:	versetup
+
+versetup:
+	@mkdir -p lib
+	@mkdir -p $(BINPATH)/bin
+	@mkdir -p $(BINPATH)/commands
+	@cp -p commands/precompiled/*.{com,exe} $(BINPATH)/commands 2> /dev/null || true
+	@rm -f ../bin ../commands
+	@ln -sf $(THISVERSION)/bin ../bin
+	@ln -sf $(THISVERSION)/commands ../commands
+
+include/confpath.h: ../Makefile.conf
+	echo '#define  ALTERNATE_ETC      "$(sysconfdir)"' > $@
+	echo '#define  LIB_DEFAULT  "$(libdir)"' >> $@
+	echo '#define  DOSEMULIB_DEFAULT  "$(dosdoordir)"' >> $@
+	echo '#define  DOSEMUHDIMAGE_DEFAULT "$(syshdimagedir)"' >> $@
+	echo '#define  SYSTEM_XFONTS_PATH ""' >> $@
+
+doslib: $(DOCS) dosemu
+	@echo ""
+	@echo "---------------------------------DONE compiling-------------------------------"
+	@echo ""
+
+install:
+	$(INSTALL) -d $(DESTDIR)$(bindir)
+	$(INSTALL) -m 0755 ../bin/$(DOSBIN) $(DESTDIR)$(bindir)
+	$(INSTALL) -d $(DESTDIR)$(dosdoordir)
+	$(INSTALL) -d $(DESTDIR)$(dosdoordir)/drive_z/dosemu
+	for i in `find $(SYS)/* -type f`; do \
+	  $(INSTALL) -m 0644 $$i $(DESTDIR)$(dosdoordir)/drive_z/dosemu; \
+	done
+	cd $(SYS); for i in `find * -type l`; do \
+	  ln -sf generic.com $(DESTDIR)$(dosdoordir)/drive_z/dosemu/$$i; \
+	done
+	$(INSTALL) -d $(DESTDIR)$(sysconfdir)
+	if [ ! -f $(DESTDIR)$(sysconfdir)/dosemu.conf ]; then \
+	  $(INSTALL) -m 0644 $(REALTOPDIR)/etc/dosemu.conf $(DESTDIR)$(sysconfdir); \
+	  $(INSTALL) -m 0644 $(REALTOPDIR)/etc/global.conf $(DESTDIR)$(sysconfdir); \
+	fi
+	$(INSTALL) -d $(DESTDIR)$(dosdoordir)/keymap
+	for i in $(REALTOPDIR)/etc/keymap/*; do \
+	  if [ -f $$i ]; then \
+	    $(INSTALL) -m 0644 $$i $(DESTDIR)$(dosdoordir)/keymap; \
+	  fi; \
+	done
+
+local_clean:
+	-rm -f $(BINPATH)/bin/$(DOSBIN) \
+	  $(BINPATH)/bin/dos $(BINPATH)/bin/*.so *.s core \
+	  *.tmp $(BINPATH)/bin/dosdoor.map *.o
+
+local_realclean:
+	-rm -f tools/tools86
+
+clean:: local_clean
+
+realclean::   local_realclean local_clean
+
+CLEANDIRS=$(addsuffix .clean, $(DIRLIST))
+REALCLEANDIRS=$(addsuffix .realclean, $(DIRLIST))
+
+clean:: $(CLEANDIRS)
+
+realclean:: $(REALCLEANDIRS)
+
+.PHONY: $(CLEANDIRS)
+$(CLEANDIRS):
+	-@$(MAKE) -C $(subst .clean,,$@) clean CLEANING=true
+
+.PHONY: $(REALCLEANDIRS)
+$(REALCLEANDIRS):
+	-@$(MAKE) -C $(subst .realclean,,$@) realclean CLEANING=true
+
+pristine:	realclean
+	-rm -rf lib
+	-rm -rf $(BINPATH) ../bin ../commands

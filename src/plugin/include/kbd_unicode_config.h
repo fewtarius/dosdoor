@@ -1,0 +1,5 @@
+#ifndef UNICODE_KEYB_CONFIG_H
+#define UNICODE_KEYB_CONFIG_H
+#define HAVE_UNICODE_KEYB 2
+#define STDC_HEADERS 1
+#endif

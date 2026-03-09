@@ -1,0 +1,93 @@
+#
+# Makefile.conf for dosdoor on macOS
+# Generated manually - configure doesn't support macOS
+#
+
+DOSBIN = dosdoor
+
+prefix:=/usr/local
+bindir:=${prefix}/bin
+sysconfdir:=/etc/dosdoor
+libdir:=${prefix}/lib
+datarootdir:=${prefix}/share
+datadir:=${prefix}/share
+mandir:=${prefix}/man
+docdir:=${datadir}/doc/dosdoor
+syshdimagedir:=/var/lib/dosdoor
+x11fontdir:=${datadir}/dosdoor/Xfonts
+fdtarball:=dosemu-freedos-bin.tgz
+abs_top_srcdir:=$(shell pwd)
+ifeq (0,${MAKELEVEL})
+    SUBDIR := $(subst $(shell cd $(top_builddir) && pwd)/src/,,$(shell pwd))
+    MAKEFLAGS += -rR
+endif
+PACKAGE_VERSION:=1.4.0.1
+RELEASE_DATE:=2026-03-09
+
+
+
+INCDIR:=-I${top_builddir}/src/include -I${top_builddir}/src/plugin/include
+ifeq ("$(wildcard $(top_builddir)/*.ac)","$(top_builddir)/configure.ac")
+  top_srcdir:=$(top_builddir)
+  srcdir:=.
+else
+  top_srcdir:=$(abs_top_srcdir)
+  ifeq ("$(top_builddir)",".")
+    srcdir:=$(abs_top_srcdir)
+  else
+    srcdir:=$(abs_top_srcdir)/src/$(SUBDIR)
+  endif
+  INCDIR += -I${top_srcdir}/src/include
+endif
+
+CFLAGS:=-Wall -Wstrict-prototypes -Wmissing-declarations -Wnested-externs -O2 -fno-strict-aliasing -Wno-pointer-sign -pipe -Wno-unused-function -Wno-deprecated-non-prototype
+ASFLAGS:=
+CPPFLAGS:= -MP -MMD ${INCDIR} -I/opt/homebrew/include
+X_CPPFLAGS:=
+SLANGINC:=-I/opt/homebrew/include
+LDFLAGS:= -L/opt/homebrew/lib
+LIBS:= -lm
+X_LIBS:=
+SLANGLIB:= -lslang -lm
+GPMLIB:=
+CC:=cc
+CPP:=cc -E
+LD:=cc
+
+ifneq "" ""
+ASM_PEDANTIC:=
+endif
+
+YACC:=bison -y
+LEX:=flex
+
+
+
+DEBUGGER:=
+
+OPTIONALSUBDIRS :=
+PLUGINSUBDIRS :=  plugin/kbd_unicode plugin/commands plugin/translate plugin/translate/charsets plugin/term
+REQUIRED:=
+
+OS=darwin
+RANLIB:=ranlib
+
+X86_EMULATOR=1
+
+INSTALL:=/usr/bin/install -c
+VPATH:=$(srcdir)
+REALTOPDIR:=$(top_srcdir)
+SRCPATH:=$(top_srcdir)/src
+DOSDOOR_VERSION:=$(shell cat $(top_srcdir)/VERSION 2>/dev/null || echo dev)
+THISVERSION:=build
+BINPATH:=$(top_builddir)/build
+PACKETNAME:=dosdoor-$(DOSDOOR_VERSION)
+
+CFLAGS += -fgnu89-inline $(XXXCFLAGS)
+ifdef USE_DL_PLUGINS
+DL_CFLAGS:=-fPIC
+else
+LIBS:=$(LIBS) $(SLANGLIB) $(X_LIBS) $(GPMLIB) $(ALSALIB) $(SNDFLIB)
+-include $(top_builddir)/src/plugin/*/Makefile.conf
+endif
+USE_MHPDBG=1

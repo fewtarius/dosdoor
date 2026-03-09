@@ -1,0 +1,44 @@
+# Build outputs
+*.o
+*.a
+*.d
+*.s.out
+src/lib/
+build/
+bin
+commands
+lib
+1.4.0.1/
+Makefile.conf
+config.status
+config.log
+confdefs.h
+src/include/confpath.h
+
+# Generated files
+src/base/init/parser.c
+src/base/init/parser.h
+src/base/init/parser.output
+src/base/init/lex.yy.c
+src/base/init/dosemu_c.c
+src/base/init/global_c.c
+src/plugin/kbd_unicode/keysym_attributes.c
+src/plugin/kbd_unicode/make_attributes
+src/plugin/translate/make_attributes
+src/plugin/translate/crunch_UnicodeData
+# plugin_enable files are committed to source (not generated)
+# don't ignore them
+plugin_libdirs
+plugin_incdirs
+plugin_configure
+
+# Working directories
+scratch/
+tests/
+
+# AI/tooling internals
+ai-assisted/
+
+# CLIO (managed automatically)
+.clio/*
+!.clio/instructions.md
