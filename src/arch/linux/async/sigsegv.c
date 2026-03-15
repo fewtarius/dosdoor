@@ -291,7 +291,7 @@ bad:
 	  _trapno, _err, _cr2,
 	  _rip, _rsp, _eflags, _cs, _ds, _es, _ss);
 
-    error("Please report the contents of ~/.dosemu/boot.log at\n"
+    error("Please report the contents of ~/.dosdoor/boot.log at\n"
 "http://sourceforge.net/tracker/?atid=457447&group_id=49784&func=browse\n"
 #ifndef _DEBUG
 "It would be even more helpful if would recompile DOSEMU and reproduce this\n"

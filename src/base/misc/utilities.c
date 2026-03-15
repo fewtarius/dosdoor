@@ -493,7 +493,7 @@ char *get_path_in_HOME(char *path)
 
 char *get_dosemu_local_home(void)
 {
-	return mkdir_under(get_path_in_HOME(".dosemu"), 0, 0);
+	return mkdir_under(get_path_in_HOME(".dosdoor"), 0, 0);
 }
 
 int argparse(char *s, char *argvx[], int maxarg)

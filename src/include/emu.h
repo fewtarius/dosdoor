@@ -241,7 +241,7 @@ typedef struct vesamode_type_struct {
        int  fastfloppy;
        char *emusys;		/* map CONFIG.SYS to CONFIG.EMU */
        char *emuini;           /* map system.ini to  system.EMU */
-       char *install;          /* directory to point ~/.dosemu/drives/c to */
+       char *install;          /* directory to point ~/.dosdoor/drives/c to */
 
        u_short speaker;		/* 0 off, 1 native, 2 emulated */
        u_short fdisks, hdisks;

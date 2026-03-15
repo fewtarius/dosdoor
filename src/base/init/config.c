@@ -958,7 +958,7 @@ config_init(int argc, char **argv)
         if (config.debugout == NULL) {
             char *home = getenv("HOME");
             if (home) {
-                const static char *debugout = "/.dosemu/boot.log";
+                const static char *debugout = "/.dosdoor/boot.log";
                 config.debugout = malloc(strlen(home) + strlen(debugout) + 1);
                 strcpy(config.debugout, home);
                 strcat(config.debugout, debugout);
