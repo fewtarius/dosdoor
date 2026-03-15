@@ -31,21 +31,21 @@ Elite (BRE), Operation: Overkill II, The Simpsons Trivia, and Darkness.
 %install
 rm -rf %{buildroot}
 install -d %{buildroot}%{_bindir}
-install -d %{buildroot}%{_datadir}/%{name}/freedos/dosemu
-install -d %{buildroot}%{_datadir}/%{name}/freedos/bin
-install -d %{buildroot}%{_datadir}/%{name}/freedos/tmp
+install -d %{buildroot}%{_datadir}/%{name}/drive_z/dosemu
+install -d %{buildroot}%{_datadir}/%{name}/drive_z/bin
+install -d %{buildroot}%{_datadir}/%{name}/drive_z/tmp
 install -d %{buildroot}%{_sysconfdir}/%{name}
 
 # Binary
 install -m 755 build/bin/dosdoor %{buildroot}%{_bindir}/dosdoor
 
-# FreeDOS files
-install -m 644 freedos/kernel.sys %{buildroot}%{_datadir}/%{name}/freedos/
-install -m 644 freedos/command.com %{buildroot}%{_datadir}/%{name}/freedos/
-install -m 644 freedos/config.sys %{buildroot}%{_datadir}/%{name}/freedos/
-install -m 644 freedos/autoexec.bat %{buildroot}%{_datadir}/%{name}/freedos/
+# FreeDOS boot files
+install -m 644 freedos/kernel.sys %{buildroot}%{_datadir}/%{name}/drive_z/
+install -m 644 freedos/command.com %{buildroot}%{_datadir}/%{name}/drive_z/
+install -m 644 freedos/config.sys %{buildroot}%{_datadir}/%{name}/drive_z/
+install -m 644 freedos/autoexec.bat %{buildroot}%{_datadir}/%{name}/drive_z/
 for f in freedos/dosemu/*.{sys,com}; do
-    [ -f "$f" ] && install -m 644 "$f" %{buildroot}%{_datadir}/%{name}/freedos/dosemu/
+    [ -f "$f" ] && install -m 644 "$f" %{buildroot}%{_datadir}/%{name}/drive_z/dosemu/
 done
 
 # Configuration
