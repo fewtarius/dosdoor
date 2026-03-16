@@ -1,3 +1,5 @@
+%define debug_package %{nil}
+
 Name:           dosdoor
 Version:        %{version}
 Release:        1%{?dist}

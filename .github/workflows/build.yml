@@ -45,6 +45,8 @@ jobs:
             --exclude='ai-assisted' --exclude='scratch' --exclude='tests' \
             --exclude='*.o' --exclude='*.a' --exclude='*.d' \
             --exclude='build' --exclude='lib' \
+            --exclude='Makefile.conf' --exclude='config.status' \
+            --exclude='config.log' --exclude='confdefs.h' \
             .
           mv /tmp/dosdoor-${VERSION}.tar.gz .
 
@@ -61,11 +63,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y gcc make flex bison libslang2-dev rpm
-
       - name: Determine version
         id: version
         run: |
@@ -75,30 +72,44 @@ jobs:
             echo "version=$(date +%Y%m%d).0" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Setup RPM build tree
+      - name: Build RPM in Rocky 9 container
         run: |
           chmod +x build.sh configure mkpluginhooks bisonpp.pl install-sh
-          mkdir -p ~/rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
           VERSION="${{ steps.version.outputs.version }}"
-          tar czf ~/rpmbuild/SOURCES/dosdoor-${VERSION}.tar.gz \
+          mkdir -p rpm-output
+
+          # create source tarball excluding configure output
+          tar czf /tmp/dosdoor-${VERSION}.tar.gz \
             --transform "s,^,dosdoor-${VERSION}/," \
             --exclude='.git' --exclude='.github' --exclude='.clio' \
             --exclude='ai-assisted' --exclude='scratch' --exclude='tests' \
+            --exclude='*.o' --exclude='*.a' --exclude='*.d' \
+            --exclude='build' --exclude='lib' \
+            --exclude='Makefile.conf' --exclude='config.status' \
+            --exclude='config.log' --exclude='confdefs.h' \
             .
-          cp dosdoor.spec ~/rpmbuild/SPECS/
 
-      - name: Build RPM
-        run: |
-          VERSION="${{ steps.version.outputs.version }}"
-          rpmbuild -bb --nodeps ~/rpmbuild/SPECS/dosdoor.spec \
-            --define "version ${VERSION}" \
-            --define "_topdir $HOME/rpmbuild"
+          # build RPM inside Rocky 9 so binary links against GLIBC 2.34
+          docker run --rm \
+            -v /tmp/dosdoor-${VERSION}.tar.gz:/tmp/dosdoor-${VERSION}.tar.gz:ro \
+            -v ${{ github.workspace }}/dosdoor.spec:/tmp/dosdoor.spec:ro \
+            -v ${{ github.workspace }}/rpm-output:/output \
+            rockylinux:9 bash -c "
+              yum -y install gcc make flex bison slang-devel rpm-build &&
+              mkdir -p /root/rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS} &&
+              cp /tmp/dosdoor-${VERSION}.tar.gz /root/rpmbuild/SOURCES/ &&
+              cp /tmp/dosdoor.spec /root/rpmbuild/SPECS/ &&
+              rpmbuild -bb /root/rpmbuild/SPECS/dosdoor.spec \
+                --define 'version ${VERSION}' \
+                --define '_topdir /root/rpmbuild' &&
+              cp /root/rpmbuild/RPMS/*/*.rpm /output/
+            "
 
       - name: Upload RPM
         uses: actions/upload-artifact@v4
         with:
           name: dosdoor-rpm
-          path: ~/rpmbuild/RPMS/**/*.rpm
+          path: rpm-output/*.rpm
 
   release:
     runs-on: ubuntu-latest
