@@ -546,9 +546,8 @@ int lredir_main(int argc, char **argv)
       }
     }
 
-    /* upper-case both strings */
+    /* upper-case device string only (not resource - it may contain Linux paths) */
     strupperDOS(deviceStr);
-    strupperDOS(resourceStr);
 
     /* now actually redirect the drive */
     ccode = RedirectDevice(deviceStr, resourceStr, REDIR_DISK_TYPE,

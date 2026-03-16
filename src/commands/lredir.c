@@ -532,9 +532,8 @@ main(int argc, char **argv)
       }
     }
 
-    /* upper-case both strings */
+    /* upper-case device string only (not resource - it may contain Linux paths) */
     strupr(deviceStr);
-    strupr(resourceStr);
 
     /* now actually redirect the drive */
     ccode = RedirectDevice(deviceStr, resourceStr, REDIR_DISK_TYPE,

@@ -7,5 +7,4 @@ files=40
 stacks=0
 buffers=10
 device=d:\\dosemu\\emufs.sys
-install=d:\\dosemu\\lredir.com z: linux\\fs\\DRIVE_Z_PATH ro
 shellhigh=z:\\command.com /e:1024 /p

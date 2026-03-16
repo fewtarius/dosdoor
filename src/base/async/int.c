@@ -1574,7 +1574,8 @@ static int int19(void) {
 void redirect_devices(void)
 {
   static char s[256] = "\\\\LINUX\\FS", *t = s + 10;
-  int i, j;
+  int i, j, z_drive;
+  char *libdir;
 
   ds_printf("redirect_devices: MAX_HDISKS=%d\n", MAX_HDISKS);
   for (i = 0; i < MAX_HDISKS; i++) {
@@ -1587,6 +1588,21 @@ void redirect_devices(void)
 
       ds_printf("INT21: redirecting %c: %s (err = %d)\n", i + 'C', j ? "failed" : "ok", j);
     }
+  }
+
+  /* Redirect Z: to the system drive_z directory.
+   * This is done here rather than via lredir in config.sys because
+   * the FreeDOS INT 21h 5F03 -> INT 2F 111E path has a subfunc
+   * mismatch that causes lredir redirects to fail with error 1. */
+  libdir = getenv("DOSEMU_LIB_DIR");
+  if (libdir) {
+    z_drive = 'Z' - 'A';  /* drive number 25 */
+    snprintf(t, 245, "%s/drive_z", libdir);
+    s[255] = 0;
+    ds_printf("redirect_devices: drive Z: => %s\n", s);
+    j = RedirectDisk(z_drive, s, 1);  /* read-only */
+    ds_printf("redirect_devices: drive Z: result=%d\n", j);
+    ds_printf("INT21: redirecting Z: %s (err = %d)\n", j ? "failed" : "ok", j);
   }
 }
 
