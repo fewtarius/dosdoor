@@ -292,8 +292,17 @@ type(scope): brief description
 - Squash commits before pushing
 - Do NOT push to origin without asking
 - Clean, descriptive commit messages
-- Date-based version tags: `YYYYMMDD.N` (e.g., `20260315.0`)
 - Use `release.sh` for tagged releases
+
+**Version Tagging (MANDATORY):**
+
+Tags MUST follow the `YYYYMMDD.N` format. No exceptions.
+
+- Format: `YYYYMMDD.N` where N starts at 0 and increments for multiple releases on the same day
+- Examples: `20260316.0`, `20260316.1`, `20260315.2`
+- **NEVER use semver** (`1.4.0.1`, `v1.0.0`, `1.0`, etc.) - it is wrong for this project
+- The internal version string in source (e.g. `VERSION` file, dosemu version) is independent of git tags; do not confuse them
+- Use `release.sh YYYYMMDD.N` to create a release - it handles tagging correctly
 
 **Pre-Commit Checklist:**
 -  Build succeeds on target platform
@@ -402,7 +411,7 @@ grep -rn "pattern" src/include/  # Search headers
 
 **Release:**
 ```bash
-./release.sh 20260315.1       # Tag a release
+./release.sh 20260315.1       # Tag a release (format: YYYYMMDD.N, NEVER semver)
 git push && git push --tags   # Push release
 ```
 
