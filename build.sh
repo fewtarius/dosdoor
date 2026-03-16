@@ -32,9 +32,11 @@ else
 #endif
 KBDEOF
         export DOSEMU_DEFAULT_CONFIGURE=1
-        ./configure --enable-cpuemu --disable-net --without-x --disable-sbemu \
-            --disable-mitshm --without-vidmode --disable-aspi --without-gpm \
-            --without-alsa --without-sndfile --disable-dlplugins
+        ./configure --prefix=/usr --sysconfdir=/etc/dosdoor \
+            --enable-cpuemu --disable-net --without-x --disable-sbemu \
+            --disable-mitshm --without-vidmode --disable-aspi \
+            --without-gpm --without-alsa --without-sndfile \
+            --disable-dlplugins
         sed -i 's/CFLAGS += $(XXXCFLAGS)/CFLAGS += -fgnu89-inline $(XXXCFLAGS)/' Makefile.conf
     fi
 fi
