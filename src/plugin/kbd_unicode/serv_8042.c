@@ -57,7 +57,9 @@ static Bit8u   keyb_ctrl_command    = 0x01;
 
 static inline void keyb_ctrl_clearbuf(void)
 {
-/* this probably ought to do something :) */
+   clear_queue(&keyb_queue);
+   port60_buffer = 0;
+   port60_ready = 0;
 }
 
 /* write byte to the 8042's output buffer */

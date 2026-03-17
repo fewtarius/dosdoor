@@ -693,7 +693,7 @@ int dos_read(int fd, char *data, int cnt)
   else
     ret = RPT_SYSCALL(read(fd, LINEAR2UNIX(data), cnt));
   if (ret > 0)
-	e_invalidate(data, ret);
+	e_invalidate((char *)(uintptr_t)data, ret);
   return (ret);
 }
 

@@ -148,7 +148,7 @@ void extmem_copy(char *dst, char *src, unsigned long len)
       clen, s, d, clen != len ? " (split)" : "");
     memmove_dos2dos(d, s, clen);
     if (d < edge)
-      e_invalidate(d, clen);
+      e_invalidate((char *)(uintptr_t)((size_t)d), clen);
     copied += clen;
   }
 }

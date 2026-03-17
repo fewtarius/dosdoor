@@ -32,6 +32,8 @@
  *
  ***************************************************************************/
 
+#include <sys/mman.h>
+
 #include "emu86.h"
 #include "trees.h"
 #include "codegen-arch.h"
@@ -60,6 +62,19 @@ int s_mprotect(caddr_t addr)
 
 #ifdef HOST_ARCH_X86
 
+static void force_page_unprotect(caddr_t addr, size_t len)
+{
+	caddr_t abeg, aend;
+	void *unix_abeg;
+
+	abeg = (caddr_t)((long)addr & PAGE_MASK);
+	aend = (caddr_t)((long)(addr + len - 1) & PAGE_MASK) + PAGE_SIZE;
+	(void)mprotect(abeg, aend - abeg, PROT_READ | PROT_WRITE | PROT_EXEC);
+	unix_abeg = LINEAR2UNIX(abeg);
+	if (unix_abeg != abeg)
+		(void)mprotect(unix_abeg, aend - abeg, PROT_READ | PROT_WRITE | PROT_EXEC);
+}
+
 static int m_mprotect(caddr_t addr)
 {
 	if (debug_level('e')>3)
@@ -87,18 +102,38 @@ static int m_munprotect(caddr_t addr, long eip)
 
 asmlinkage int r_munprotect(caddr_t addr, long len, unsigned char *eip)
 {
+	long orig_addr = (long)addr;
+	long orig_len = len;
+	long elem = 1;
+	unsigned char *op = eip;
+	unsigned char op0 = eip[0], op1 = eip[1], op2 = eip[2], op3 = eip[3];
 
-	if (*eip == 0x66)
-		len *= 2;
-	else if (*eip & 1)
-		len *= 4;
-	if (EFLAGS & EFLAGS_DF) addr -= len;
+	if (*op == 0xf3 || *op == 0xf2)
+		op++;
+	if (*op == 0x66) {
+		op++;
+		elem = 2;
+	}
+	else if (*op & 1)
+		elem = 4;
+	len *= elem;
+	if (EFLAGS & EFLAGS_DF)
+		addr -= (len - elem);
+	if (debug_level('e'))
+	    e_printf("R_MUNPROT args: orig_addr=%08lx orig_len=%08lx adj_addr=%08lx adj_len=%08lx df=%d ops=%02x %02x %02x %02x\n",
+		orig_addr, orig_len, (long)addr, len,
+		(EFLAGS & EFLAGS_DF) ? 1 : 0, op0, op1, op2, op3);
 	if (debug_level('e')>3)
 	    e_printf("\tR_MUNPROT %08lx:%08lx %s\n",
 		(long)addr,(long)addr+len,(EFLAGS&EFLAGS_DF?"back":"fwd"));
 	InvalidateNodePage((long)addr,len,(long)eip,NULL);
 	e_resetpagemarks(addr,len);
 	e_munprotect(addr,len);
+	/* Force-unprotect the original fault page as a safety net in case the
+	 * REP span calculation and page-tracking state drift apart. */
+	e_munprotect((caddr_t)(orig_addr & PAGE_MASK), PAGE_SIZE);
+	force_page_unprotect(addr, len);
+	force_page_unprotect((caddr_t)(orig_addr & PAGE_MASK), PAGE_SIZE);
 	return 0;
 }
 
@@ -346,6 +381,11 @@ int Cpatch(struct sigcontext_struct *scp)
     unsigned char *eip = (unsigned char *)_rip;
 
     p = eip;
+    if (p[-2] == 0xff && p[-1] == 0x13 && *p == 0xf3) {
+	if (debug_level('e')>1) e_printf("### REP movs/stos already patched at %08lx\n",(long)eip);
+	_rip -= 2;
+	return 1;
+	}
     if (*p==0xf3 && p[-1] == 0x90 && p[-2] == 0x90) {	// rep movs, rep stos
 	if (debug_level('e')>1) e_printf("### REP movs/stos patch at %08lx\n",(long)eip);
 	p-=2;

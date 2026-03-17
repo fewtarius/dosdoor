@@ -35,6 +35,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <Linux/serial.h>
 
 #include "config.h"
@@ -64,6 +65,51 @@ inline int convert_bit(int testval, int inbit, int outbit)
 static inline void rx_buffer_dump(int num)
 {
   tcflush(com[num].fd,TCIFLUSH);
+}
+
+
+/* This drains any immediately pending host-side input after tcflush(). */
+void uart_drain_input(int num)
+{
+  unsigned char discard[256];
+  int flags, loops = 0, drained = 0;
+
+  rx_buffer_dump(num);
+
+  flags = fcntl(com[num].fd, F_GETFL);
+  if (flags == -1)
+    return;
+
+  if (!(flags & O_NONBLOCK)) {
+    if (fcntl(com[num].fd, F_SETFL, flags | O_NONBLOCK) == -1)
+      return;
+  }
+
+  for (;;) {
+    ssize_t got = read(com[num].fd, discard, sizeof(discard));
+
+    if (got > 0) {
+      drained += got;
+      loops++;
+      if (drained >= 4096 || loops >= 32)
+        break;
+      continue;
+    }
+
+    if (got == 0)
+      break;
+
+    if (errno == EAGAIN || errno == EWOULDBLOCK)
+      break;
+
+    break;
+  }
+
+  if (!(flags & O_NONBLOCK))
+    fcntl(com[num].fd, F_SETFL, flags);
+
+  if (drained && s1_printf)
+    s_printf("SER%d: Drained %d stale host input bytes\n", num, drained);
 }
 
 

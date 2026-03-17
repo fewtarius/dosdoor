@@ -520,6 +520,12 @@ int e_emu_fault(struct sigcontext_struct *scp)
 		    v = *((int *)p);
 		    __asm__("bswap %0" : "=r" (v) : "0" (v));
 		    e_printf("Faulting ops: %08x\n",v);
+		    e_printf("Fault bytes @rip: %02x %02x %02x %02x %02x %02x\n",
+		        p[0], p[1], p[2], p[3], p[4], p[5]);
+		    if (InCompiledCode) {
+		        e_printf("Cpatch probe bytes: %02x %02x %02x %02x %02x %02x %02x\n",
+		            p[-2], p[-1], p[0], p[1], p[2], p[3], p[4]);
+		    }
 
 		    if (!InCompiledCode) {
 			dbug_printf("*\tFault out of %scode, cs:eip=%x:%lx,"
@@ -541,13 +547,19 @@ int e_emu_fault(struct sigcontext_struct *scp)
 		 * linked by Cpatch will do it */
 		/* ACH: we can set up a data patch for code
 		 * which has not yet been executed! */
-		if (InCompiledCode && !e_querymark((void *)_cr2) && Cpatch(scp)) {
+		if (InCompiledCode) {
+		    int code_marked = e_querymark((void *)_cr2);
+		    int patched = Cpatch(scp);
+		    e_printf("Cpatch result: patched=%d code_marked=%d cr2=%08lx rip=%08lx\n",
+		        patched, code_marked, _cr2, _rip);
+		    if (patched) {
 		    /* For hot pages, unprotect permanently since
 		     * the stub's munprotect/mprotect are no-ops
 		     * for hot pages outside signal context */
 		    if (e_is_hot_page_cr2(_cr2))
 			e_munprotect((void *)_cr2, 0);
 		    return 1;
+		    }
 		}
 		/* We HAVE to invalidate all the code in the page
 		 * if the page is going to be unprotected */

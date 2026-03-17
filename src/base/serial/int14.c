@@ -154,6 +154,8 @@ int int14(void)
     /* Lower DLAB bit */
     write_LCR(num, temp & ~0x80);
 
+    uart_clear_fifo(num, UART_FCR_CLEAR_RCVR);
+    uart_drain_input(num);
     uart_fill(num);			/* Fill UART with received data */
     HI(ax) = read_LSR(num);		/* Read Line Status (LSR) into AH */
     LO(ax) = read_MSR(num);		/* Read Modem Status (MSR) into AL */

@@ -26,9 +26,13 @@
 #include <string.h>
 #include <termios.h>
 #include "config.h" 
+#include "bios.h"
+#include "cpu.h"
 #include "emu.h"
+#include "memory.h"
 #include "serial.h"
 #include "ser_defs.h"
+#include "timers.h"
 
 /* These macros are shortcuts to access various serial port registers
  *   read_char		Read character
@@ -64,6 +68,39 @@
 #define FOSSIL_MAX_FUNCTION 0x1b
 
 static void fossil_check_info(void);
+
+static int fossil_get_bios_key(int remove_key, int extended)
+{
+  unsigned keyptr = READ_WORD(BIOS_KEYBOARD_BUFFER_HEAD);
+  unsigned keyend = READ_WORD(BIOS_KEYBOARD_BUFFER_TAIL);
+  unsigned key;
+
+  if (keyptr == keyend) {
+    _EFLAGS |= ZF;
+    return 0;
+  }
+
+  key = READ_WORD(BIOS_DATA_SEG + keyptr);
+  _EFLAGS &= ~ZF;
+
+  if (remove_key) {
+    keyptr += 2;
+    if (keyptr == READ_WORD(BIOS_KEYBOARD_BUFFER_END))
+      keyptr = READ_WORD(BIOS_KEYBOARD_BUFFER_START);
+    WRITE_WORD(BIOS_KEYBOARD_BUFFER_HEAD, keyptr);
+  }
+
+  if (!extended) {
+    unsigned char scan_code = key >> 8;
+
+    if ((key & 0xff) == 0xe0)
+      key &= ~0xff;
+    if ((key & 0xff) == 0 && scan_code >= 0x85)
+      return 0;
+  }
+
+  return key;
+}
 
 /* These are the address of the FOSSIL id string, which is located
  * in FOSSIL.COM. These are set by serial_helper when FOSSIL.COM
@@ -129,25 +166,22 @@ void fossil_int14(int num)
     LWORD(eax) = FOSSIL_GET_STATUS(num);
     break;
     
-  /* Read character (should be with wait) */
+  /* Read character (with wait) */
   case 0x02:
     uart_fill(num);			/* Fill UART with received data */
-    if (com[num].LSR & UART_LSR_DR) {	/* Was a character received? */
-      LO(ax) = read_char(num);
-      HI(ax) = 0;
-      #if SER_DEBUG_FOSSIL_RW
-        s_printf("SER%d: FOSSIL 0x02: Read char 0x%02x\n", num, LO(ax));
-      #endif
-    }
-    else {
-      /* This is supposed to be read-with-wait, but I since most programs don't
-       * use this function without checking for character available, I think
-       * it doesn't matter. 
+    while (!(com[num].LSR & UART_LSR_DR)) {
+      /* Block until data arrives, yielding to the main loop so that
+       * signal handlers can run serial_run() -> uart_fill() when
+       * new data arrives on the PTY/serial fd.
        */
-      LO(ax) = 0;
-      HI(ax) = 0x80;
-      s_printf("SER%d: FOSSIL 0x02: Read with wait failed!\n", num);
+      idle(0, 10, 0, 5000, "fossil_read");
+      uart_fill(num);
     }
+    LO(ax) = read_char(num);
+    HI(ax) = 0;
+    #if SER_DEBUG_FOSSIL_RW
+      s_printf("SER%d: FOSSIL 0x02: Read char 0x%02x\n", num, LO(ax));
+    #endif
     break;
     
   /* Get port status. */
@@ -176,6 +210,7 @@ void fossil_int14(int num)
      */
     write_FCR(num, UART_FCR_ENABLE_FIFO|UART_FCR_TRIGGER_14);
     uart_clear_fifo(num, UART_FCR_CLEAR_CMD);
+    uart_drain_input(num);
     com[num].rx_fifo_size = RX_BUFFER_SIZE/2;
     /* Initialize FOSSIL driver info buffer. This is used by the 
      * function 0x1b (Get driver info). 
@@ -220,6 +255,7 @@ void fossil_int14(int num)
   /* Purge input buffer */
   case 0x0a:
     uart_clear_fifo(num, UART_FCR_CLEAR_RCVR);
+    uart_drain_input(num);
     s_printf("SER%d: FOSSIL 0x0a: Purge input buffer\n", num);
     break;
 
@@ -309,30 +345,111 @@ void fossil_int14(int num)
 
   /* Get timer tick information. */
   case 0x07:
+    LWORD(edx) = LOWMEM_READ_DWORD(BIOS_TIMER);
+    #if SER_DEBUG_FOSSIL_STATUS
+      s_printf("SER%d: FOSSIL 0x07: Timer ticks DX=%04x\n", num, LWORD(edx));
+    #endif
+    break;
+
   /* Flush output buffer. */
   case 0x08:
+    while (TX_BUF_BYTES(num) || !(com[num].LSR & UART_LSR_TEMT)) {
+      idle(0, 10, 0, 5000, "fossil_flush");
+    }
+    LWORD(eax) = FOSSIL_GET_STATUS(num);
+    #if SER_DEBUG_FOSSIL_RW
+      s_printf("SER%d: FOSSIL 0x08: Flush output buffer\n", num);
+    #endif
+    break;
+
   /* Non-destructive read (peek). */
   case 0x0c:
+    uart_fill(num);
+    if (com[num].LSR & UART_LSR_DR) {
+      LO(ax) = com[num].rx_buf[com[num].rx_buf_start];
+      HI(ax) = 0;
+      _EFLAGS &= ~ZF;
+    } else {
+      LO(ax) = 0;
+      HI(ax) = 0x80;
+      _EFLAGS |= ZF;
+    }
+    #if SER_DEBUG_FOSSIL_RW
+      s_printf("SER%d: FOSSIL 0x0c: Peek char AX=%04x\n", num, LWORD(eax));
+    #endif
+    break;
+
   /* Keyboard read (without wait). */
   case 0x0d:
+  {
+    int key = fossil_get_bios_key(0, 0);
+    if (key) {
+      LWORD(eax) = key;
+    } else {
+      LWORD(eax) = 0;
+    }
+    #if SER_DEBUG_FOSSIL_RW
+      s_printf("SER%d: FOSSIL 0x0d: Keyboard read nowait AX=%04x\n", num, LWORD(eax));
+    #endif
+    break;
+  }
+
   /* Keyboard read (with wait). */
   case 0x0e:
+  {
+    int key = fossil_get_bios_key(1, 0);
+    while (!key) {
+      idle(0, 10, 0, 5000, "fossil_kbd_read");
+      key = fossil_get_bios_key(1, 0);
+    }
+    LWORD(eax) = key;
+    #if SER_DEBUG_FOSSIL_RW
+      s_printf("SER%d: FOSSIL 0x0e: Keyboard read wait AX=%04x\n", num, LWORD(eax));
+    #endif
+    break;
+  }
+
   /* Set flow control. */
   case 0x0f:
+    LWORD(eax) = 0;
+    #if SER_DEBUG_FOSSIL_STATUS
+      s_printf("SER%d: FOSSIL 0x0f: Ignoring flow control request AL=0x%02x\n", num, LO(ax));
+    #endif
+    break;
+
   /* Enable/disable Ctrl-C/Ctrl-K checking and transmitter. */
   case 0x10:
+    LWORD(eax) = 0;
+    #if SER_DEBUG_FOSSIL_STATUS
+      s_printf("SER%d: FOSSIL 0x10: Ignoring control flags request AL=0x%02x\n", num, LO(ax));
+    #endif
+    break;
+
   /* Set cursor location. */
   case 0x11:
+    break;
+
   /* Get cursor location. */
   case 0x12:
+    LWORD(edx) = 0x0101;
+    break;
+
   /* Write character to screen (with ANSI support). */
   case 0x13:
+    break;
+
   /* Enable/disable DCD watchdog. */
   case 0x14:
+    break;
+
   /* Write character to screen (using BIOS). */
   case 0x15:
+    break;
+
   /* Add/delete function from timer tick chain. */ 
   case 0x16:
+    break;
+
   /* Reboot system. */
   case 0x17:
   /* Break begin/end. */
