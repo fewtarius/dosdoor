@@ -20,13 +20,6 @@
 #define set_typematic_rate()
 #define adjust_keyclick()
 
-/* Auto-answer count for virtual serial mode boot prompts.
- * When virtual serial is active, COMMAND.COM date/time prompts
- * hang because the keyboard handler can't read stdin (serial owns it).
- * We auto-stuff a few Enter keys to bypass these prompts. */
-static int auto_enter_count = 0;
-static int auto_enter_pending = 0;
-#define AUTO_ENTER_MAX 5
 enum {
   NON_EXTENDED, EXTENDED
 };
@@ -125,19 +118,6 @@ static unsigned check_key_available(int extended)
 {
   unsigned keyptr = get_key(extended);
   if(keyptr == -1) {
-    /* In virtual serial mode, auto-answer boot prompts */
-    if (no_local_video && auto_enter_count < AUTO_ENTER_MAX && !auto_enter_pending) {
-      auto_enter_count++;
-      auto_enter_pending = 1;
-      k_printf("KBD: auto-enter %d/%d (check_key)\n",
-               auto_enter_count, AUTO_ENTER_MAX);
-      store_key(0x1C0D);  /* Enter */
-      keyptr = get_key(extended);
-      if (keyptr != -1) {
-        reset_idle(1);
-        return keyptr;
-      }
-    }
     if(!port60_buffer || (port60_buffer & 0x80))
       trigger_idle();
     else
@@ -157,28 +137,10 @@ static void read_key(int extended)
   unsigned keyptr = get_key(extended);
 
   if (keyptr == -1) {
-    /* Auto-answer boot prompts when running headless/automated.
-     * FreeDOS kernel waits for F5/F8 keypress at boot even with
-     * SWITCHES=/F, and COMMAND.COM may prompt for date/time. */
-    if (auto_enter_count < AUTO_ENTER_MAX && !auto_enter_pending) {
-      auto_enter_count++;
-      auto_enter_pending = 1;
-      k_printf("KBD: auto-enter %d/%d (read_key)\n",
-               auto_enter_count, AUTO_ENTER_MAX);
-      store_key(0x1C0D);  /* Enter key */
-      keyptr = get_key(extended);
-      if (keyptr != -1) {
-        reset_idle(1);
-        goto got_key;
-      }
-    }
     /* zero flag is set so vm86 assembly can call us again */
     if (config.hogthreshold) usleep(INT2F_IDLE_USECS);
     return;
   }
-
-  auto_enter_pending = 0;
-got_key:
   keyptr += 2;
   /* check for wrap around        */
   if (keyptr == READ_WORD(BIOS_KEYBOARD_BUFFER_END)) {
