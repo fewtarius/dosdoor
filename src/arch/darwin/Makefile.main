@@ -93,6 +93,24 @@ install:
 	cd $(SYS); for i in `find * -type l`; do \
 	  ln -sf generic.com $(DESTDIR)$(dosdoordir)/drive_z/dosemu/$$i; \
 	done
+	$(INSTALL) -d $(DESTDIR)$(dosdoordir)/freedos
+	$(INSTALL) -d $(DESTDIR)$(dosdoordir)/freedos/dosemu
+	for i in $(REALTOPDIR)/freedos/*.{sys,com,bat}; do \
+	  if [ -f $$i ]; then \
+	    $(INSTALL) -m 0644 $$i $(DESTDIR)$(dosdoordir)/freedos; \
+	  fi; \
+	done
+	for i in $(REALTOPDIR)/freedos/dosemu/*; do \
+	  if [ -f $$i ]; then \
+	    $(INSTALL) -m 0644 $$i $(DESTDIR)$(dosdoordir)/freedos/dosemu; \
+	  fi; \
+	done
+	if [ -d $(REALTOPDIR)/freedos/bin ]; then \
+	  $(INSTALL) -d $(DESTDIR)$(dosdoordir)/freedos/bin; \
+	fi
+	if [ -d $(REALTOPDIR)/freedos/tmp ]; then \
+	  $(INSTALL) -d $(DESTDIR)$(dosdoordir)/freedos/tmp; \
+	fi
 	$(INSTALL) -d $(DESTDIR)$(sysconfdir)
 	if [ ! -f $(DESTDIR)$(sysconfdir)/dosemu.conf ]; then \
 	  $(INSTALL) -m 0644 $(REALTOPDIR)/etc/dosemu.conf $(DESTDIR)$(sysconfdir); \
