@@ -39,6 +39,7 @@
 static unsigned long dosdebug_flags = 0;
 #define DBGF_INTERCEPT_LOG   0x002
 #define DBGF_DISABLE_LOG_TO_FILE 0x004
+int vmhp_log_intercept(int flg, const char *fmt, va_list args);
 #endif
 
 /*

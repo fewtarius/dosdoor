@@ -115,7 +115,9 @@ static unsigned long *emu_stack_ptr;
 static unsigned int *iret_frame;
 #endif
 static int find_cli_in_blacklist(unsigned char *);
+#ifdef USE_MHPDBG
 static int dpmi_mhp_intxx_check(struct sigcontext_struct *scp, int intno);
+#endif
 
 struct vm86_regs DPMI_rm_stack[DPMI_max_rec_rm_func];
 int DPMI_rm_procedure_running = 0;
@@ -3295,7 +3297,9 @@ static void do_cpu_exception(struct sigcontext_struct *scp)
   set_debug_level('M', 1);
 #endif
 
+#ifdef USE_MHPDBG
   mhp_intercept("\nCPU Exception occured, invoking dosdebug\n\n", "+9M");
+#endif
 
   D_printf("DPMI: do_cpu_exception(0x%02x) at %#x:%#x, ss:esp=%x:%x, cr2=%#lx, err=%#lx\n",
 	_trapno, _cs, _eip, _ss, _esp, _cr2, _err);

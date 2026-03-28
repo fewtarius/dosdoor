@@ -10,6 +10,7 @@
 DOSBIN = dosdoor
 
 prefix:=@prefix@
+exec_prefix:=@exec_prefix@
 bindir:=@bindir@
 sysconfdir:=@sysconfdir@
 libdir:=@libdir@
