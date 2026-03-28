@@ -42,7 +42,7 @@ jobs:
           tar czf /tmp/dosdoor-${VERSION}.tar.gz \
             --transform "s,^,dosdoor-${VERSION}/," \
             --exclude='.git' --exclude='.github' --exclude='.clio' \
-            --exclude='ai-assisted' --exclude='scratch' --exclude='tests' \
+            --exclude='ai-assisted' --exclude='scratch' \
             --exclude='*.o' --exclude='*.a' --exclude='*.d' \
             --exclude='build' --exclude='lib' \
             --exclude='Makefile.conf' --exclude='config.status' \
@@ -82,7 +82,7 @@ jobs:
           tar czf /tmp/dosdoor-${VERSION}.tar.gz \
             --transform "s,^,dosdoor-${VERSION}/," \
             --exclude='.git' --exclude='.github' --exclude='.clio' \
-            --exclude='ai-assisted' --exclude='scratch' --exclude='tests' \
+            --exclude='ai-assisted' --exclude='scratch' \
             --exclude='*.o' --exclude='*.a' --exclude='*.d' \
             --exclude='build' --exclude='lib' \
             --exclude='Makefile.conf' --exclude='config.status' \

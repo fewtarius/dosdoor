@@ -34,7 +34,6 @@ plugin_configure
 
 # Working directories
 scratch/
-tests/
 
 # AI/tooling internals
 ai-assisted/
