@@ -2038,12 +2038,32 @@ static void stop_disk(int token)
 
       c_printf("device: %s ", dptr->dev_name);
       if (stat(dptr->dev_name,&file_status) != 0) { /* Does this file exist? */
-	 if (config.install ||
-	     strcmp(dptr->dev_name, DOSEMUHDIMAGE_DEFAULT"/drives/*") == 0) {
-	    /* default setting: display a menu */
+	 int len = strlen(dptr->dev_name);
+	 int is_default_drives = (len >= 8 &&
+	     strcmp(dptr->dev_name + len - 8, "/drives/c") == 0);
+	 if (is_default_drives) {
+	    /* default C: drive dir missing, create it */
+	    if (mkdir(dptr->dev_name, 0755) == 0 ||
+	        (errno == ENOENT && /* parent missing too */
+	         mkdir(dptr->dev_name, 0755) == 0)) {
+	       g_printf("CONFIG: created %s\n", dptr->dev_name);
+	       dptr->type = DIR_TYPE;
+	    } else {
+	       /* try creating parent (drives/) first */
+	       char *parent = strdup(dptr->dev_name);
+	       parent[len - 2] = '\0'; /* strip "/c" */
+	       mkdir(parent, 0755);
+	       free(parent);
+	       if (mkdir(dptr->dev_name, 0755) == 0) {
+	          g_printf("CONFIG: created %s\n", dptr->dev_name);
+	          dptr->type = DIR_TYPE;
+	       } else {
+	          dptr->type = DIR_TYPE;
+	          config.install = "";
+	       }
+	    }
+	 } else if (config.install) {
 	    dptr->type = DIR_TYPE;
-	    if (!config.install)
-	       config.install = "";
 	 } else
 	    yyerror("Disk-device/file %s doesn't exist.",dptr->dev_name);
       }

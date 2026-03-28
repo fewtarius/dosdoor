@@ -25,6 +25,12 @@
  * to make the 'new version style check' happy, else dosemu will abort.
  */
 
+/* Merged parser stuff for translate plugin
+ */
+
+/* Merged parser stuff for keyboard plugin
+ */
+
 %{
 
 #define PARSER_VERSION_STRING "parser_version_3"
@@ -82,9 +88,6 @@ static serial_t *sptr;
 static serial_t nullser;
 static mouse_t *mptr = &config.mouse;
 static int c_ser = 0;
-static void keyb_mod(int wich, t_keysym keynum, int unicode) {
-  (void)wich; (void)keynum; (void)unicode;
-}
 
 static struct disk *dptr;
 static struct disk nulldisk;
@@ -182,7 +185,25 @@ while (0)
 
 	/* variables in lexer.l */
 
+
+
+#include "translate.h"
+#include "dosemu_charset.h"
+	/* for translate plugin */
+
+static void set_internal_charset(char *charset_name);
+static void set_external_charset(char *charset_name);
+
+
+
+
+	/* for unicode keyboard plugin */
+static void keyb_mod(int wich, t_keysym keynum, int unicode);
+static void dump_keytable_part(FILE *f, t_keysym *map, int size);
+
 %}
+
+
 
 %start lines
 
@@ -325,6 +346,14 @@ while (0)
 
 %type <i_value> int_bool irq_bool bool speaker floppy_bool cpuemu
 
+
+	/* charset */
+%token INTERNAL EXTERNAL
+
+	/* special bison declaration */
+%token <i_value> UNICODE
+%token SHIFT_ALT_MAP CTRL_MAP CTRL_ALT_MAP
+
 %%
 
 lines		: line
@@ -336,7 +365,9 @@ optdelim	: ';'
 		| optdelim ';'
 		;
 
-line		: HOGTHRESH expression	{ config.hogthreshold = $2; }
+line:		CHARSET '{' charset_flags '}' {}
+		/* charset flags */
+		| HOGTHRESH expression	{ config.hogthreshold = $2; }
 		| DEFINE string_unquoted{ IFCLASS(CL_VAR){ define_config_variable($2);} free($2); }
 		| UNDEF string_unquoted	{ IFCLASS(CL_VAR){ undefine_config_variable($2);} free($2); }
 		| IFSTATEMENT '(' expression ')' {
@@ -1330,7 +1361,10 @@ keyboard_mods	: keyboard_mod
 		| keyboard_mods keyboard_mod
 		;
 
-keyboard_mod	: expression '=' { keyb_mod(' ', $1, 0); } keyboard_modvals
+keyboard_mod	: CTRL_MAP expression '=' { keyb_mod('C', $2, 0); } keyboard_modvals
+		| SHIFT_ALT_MAP expression '=' { keyb_mod('a', $2, 0); } keyboard_modvals
+		| CTRL_ALT_MAP expression '=' { keyb_mod('c', $2, 0); } keyboard_modvals
+		| expression '=' { keyb_mod(' ', $1, 0); } keyboard_modvals
 		| SHIFT_MAP expression '=' { keyb_mod('S', $2, 0); } keyboard_modvals
 		| ALT_MAP expression '=' { keyb_mod('A', $2, 0); } keyboard_modvals
 		| NUMPAD_MAP expression '=' { keyb_mod('N', $2, 0); } keyboard_modvals
@@ -1340,7 +1374,21 @@ keyboard_modvals: keyboard_modval
 		| keyboard_modvals ',' keyboard_modval
 		;
 
-keyboard_modval : INTEGER { keyb_mod(0, $1, 0); }
+keyboard_modval : UNICODE { keyb_mod(0, $1, 1); }
+		| DGRAVE { keyb_mod(0, KEY_DEAD_GRAVE, 1); }
+		| DACUTE { keyb_mod(0, KEY_DEAD_ACUTE, 1); }
+		| DCIRCUM { keyb_mod(0, KEY_DEAD_CIRCUMFLEX, 1); }
+		| DTILDE { keyb_mod(0, KEY_DEAD_TILDE, 1); }
+		| DBREVE { keyb_mod(0, KEY_DEAD_BREVE, 1); }
+		| DABOVED { keyb_mod(0, KEY_DEAD_ABOVEDOT, 1); }
+		| DDIARES { keyb_mod(0, KEY_DEAD_DIAERESIS, 1); }
+		| DABOVER { keyb_mod(0, KEY_DEAD_ABOVERING, 1); }
+		| DDACUTE { keyb_mod(0, KEY_DEAD_DOUBLEACUTE, 1); }
+		| DCEDILLA { keyb_mod(0, KEY_DEAD_CEDILLA, 1); }
+		| DIOTA { keyb_mod(0, KEY_VOID, 1); } /* no dead iotas exist */
+		| DOGONEK { keyb_mod(0,KEY_DEAD_OGONEK, 1); }
+		| DCARON { keyb_mod(0, KEY_DEAD_CARON, 1); }
+		| INTEGER { keyb_mod(0, $1, 0); }
 		| '(' expression ')' { keyb_mod(0, $2, 0); }
 		| string_unquoted {
 			char *p = $1;
@@ -1698,6 +1746,14 @@ cpuemu		: L_OFF		{ $$ = 0; }
 		| error         { yyerror("expected 'off', 'vm86' or 'full'"); }
 		;
 
+charset_flags	: charset_flag
+		| charset_flags charset_flag
+		;
+
+charset_flag	: INTERNAL STRING { set_internal_charset ($2); free($2); }
+		| EXTERNAL STRING { set_external_charset ($2); free($2); }
+		;
+
 %%
 
 	/* features */
@@ -2041,12 +2097,32 @@ static void stop_disk(int token)
 
       c_printf("device: %s ", dptr->dev_name);
       if (stat(dptr->dev_name,&file_status) != 0) { /* Does this file exist? */
-	 if (config.install ||
-	     strcmp(dptr->dev_name, DOSEMUHDIMAGE_DEFAULT"/drives/*") == 0) {
-	    /* default setting: display a menu */
+	 int len = strlen(dptr->dev_name);
+	 int is_default_drives = (len >= 8 &&
+	     strcmp(dptr->dev_name + len - 8, "/drives/c") == 0);
+	 if (is_default_drives) {
+	    /* default C: drive dir missing, create it */
+	    if (mkdir(dptr->dev_name, 0755) == 0 ||
+	        (errno == ENOENT && /* parent missing too */
+	         mkdir(dptr->dev_name, 0755) == 0)) {
+	       g_printf("CONFIG: created %s\n", dptr->dev_name);
+	       dptr->type = DIR_TYPE;
+	    } else {
+	       /* try creating parent (drives/) first */
+	       char *parent = strdup(dptr->dev_name);
+	       parent[len - 2] = '\0'; /* strip "/c" */
+	       mkdir(parent, 0755);
+	       free(parent);
+	       if (mkdir(dptr->dev_name, 0755) == 0) {
+	          g_printf("CONFIG: created %s\n", dptr->dev_name);
+	          dptr->type = DIR_TYPE;
+	       } else {
+	          dptr->type = DIR_TYPE;
+	          config.install = "";
+	       }
+	    }
+	 } else if (config.install) {
 	    dptr->type = DIR_TYPE;
-	    if (!config.install)
-	       config.install = "";
 	 } else
 	    yyerror("Disk-device/file %s doesn't exist.",dptr->dev_name);
       }
@@ -3126,3 +3202,232 @@ main(int argc, char **argv)
 }
 
 #endif
+
+	/* charset */
+static struct char_set *get_charset(char *name)
+{
+	struct char_set *charset;
+
+	charset = lookup_charset(name);
+	if (!charset) {
+		yyerror("Can't find charset %s", name);
+	}
+	return charset;
+
+}
+
+static void set_external_charset(char *charset_name)
+{
+	struct char_set *charset;
+	charset = get_charset(charset_name);
+	charset = get_terminal_charset(charset);
+	if (charset) {
+		if (!trconfig.output_charset) {
+			trconfig.output_charset = charset;
+		}
+		if (!trconfig.keyb_charset) {
+			trconfig.keyb_charset = charset;
+		}
+	}
+	return;
+}
+
+static void set_internal_charset(char *charset_name)
+{
+	struct char_set *charset_video, *charset_config;
+	charset_video = get_charset(charset_name);
+	if (!is_display_charset(charset_video)) {
+		yyerror("%s not suitable as an internal charset", charset_name);
+	}
+	charset_config = get_terminal_charset(charset_video);
+	if (charset_video && !trconfig.video_mem_charset) {
+		trconfig.video_mem_charset = charset_video;
+	}
+	if (charset_config && !trconfig.keyb_config_charset) {
+		trconfig.keyb_config_charset = charset_config;
+	}
+	if (charset_config && !trconfig.dos_charset) {
+		trconfig.dos_charset = charset_config;
+	}
+	return;
+}
+
+
+/* for keyboard plugin */
+
+
+
+static void keyb_mod(int wich, t_keysym keynum, int unicode)
+{
+	static t_keysym *table = 0;
+	static int count = 0;
+	
+	if (wich == ' ') {
+		switch (keynum & 0xFF00) {
+		case 0x000: wich = ' '; break;
+		case 0x100: wich = 'S'; break;
+		case 0x200: wich = 'A'; break;
+		case 0x300: wich = 'N'; break;
+		case 0x400: wich = 'C'; break;
+		case 0x500: wich = 'a'; break;
+		case 0x600: wich = 'c'; break;
+		default: 
+			/* It's a bad value ditch it */
+			wich ='X'; table = 0; count = 0; break;
+		}
+		keynum &= 0xFF;
+	}
+
+	switch (wich) {
+	case ' ': table = config.keytable->key_map;
+		count=config.keytable->sizemap;
+		break;
+	case 'S': table = config.keytable->shift_map;
+		count=config.keytable->sizemap;
+		break;
+	case 'A': table = config.keytable->alt_map;
+		count=config.keytable->sizemap;
+		break;
+	case 'C': table = config.keytable->ctrl_map;
+		count=config.keytable->sizemap;
+		break;
+	case 'a': table = config.keytable->shift_alt_map;
+		count=config.keytable->sizemap;
+		break;
+	case 'c': table = config.keytable->ctrl_alt_map;
+		count=config.keytable->sizemap;
+		break;
+	case 'N': table = config.keytable->num_table;
+		count=config.keytable->sizepad;
+		break;
+	}
+
+
+	if (!table || (count == 0) || (wich != 0 && keynum >= count)) {
+		count = 0;
+		table = 0;
+		return;
+	}
+	if (wich != 0) {
+		table += keynum;
+		count -= keynum;
+		return;
+	}
+	if (!unicode) {
+		if (keynum == 0) {
+			keynum = KEY_VOID;
+		} else {
+			keynum = keynum + 0xEF00;
+		}
+	}
+	if (count > 0) {
+		*table++ = keynum;
+		count--;
+	}
+}
+
+
+static char *get_key_name(t_keysym key)
+{
+	struct key_names {
+		t_keysym key;
+		char *name;
+	};
+	static struct key_names names[] =
+	{
+		{ KEY_DEAD_GRAVE,	"dgrave"},
+		{ KEY_DEAD_ACUTE,	"dacute"},
+		{ KEY_DEAD_CIRCUMFLEX,	"dcircum"},
+		{ KEY_DEAD_TILDE,	"dtilde"},
+		{ KEY_DEAD_BREVE,	"dbreve"},
+		{ KEY_DEAD_ABOVEDOT,	"daboved"},
+		{ KEY_DEAD_DIAERESIS,	"ddiares"},
+		{ KEY_DEAD_ABOVERING,	"dabover"},
+		{ KEY_DEAD_DOUBLEACUTE,	"ddacute"},
+		{ KEY_DEAD_CEDILLA,	"dcedilla"},
+		{ KEY_DEAD_OGONEK,	"dogonek"},
+		{ KEY_DEAD_CARON,	"dcaron"},
+	};
+	int i;
+	for(i = 0; i < sizeof(names)/sizeof(names[0]); i++) {
+		if (names[i].key == key) {
+			return names[i].name;
+		}
+	}
+	return 0;
+}
+
+static void dump_keytable_part(FILE *f, t_keysym *map, int size)
+{
+  int i, in_string=0;
+  t_keysym c;
+  unsigned char *cc, comma=' ', buf[16];
+
+  /* Note: This code assumes every font is a superset of ascii */
+  if (!map) {
+	  return;
+  }
+  size--;
+  for (i=0; i<=size; i++) {
+    c = map[i];
+    if (!(i & 15)) fprintf(f,"    ");
+    cc = get_key_name(c);
+    if (!cc && (c < 128) && isprint(c) && !strchr("\\\"\'`", c)) {
+      if (in_string) fputc(c,f);
+      else {
+        fprintf(f, "%c\"%c", comma, c);
+        in_string = 1;
+      }
+    }
+    else {
+      if (!cc) {
+	if (((c > 0) && (c < 128)) || ((c >= 0xEF00) && (c <= 0xEFFF))) {
+	  sprintf(buf, "%d", c & 0xFF);
+	} else if (c == KEY_VOID) {
+	  strcpy(buf, "0");
+	} else {
+	  sprintf(buf, "\\u%04x", c);
+	}
+	cc = buf;
+      }
+      if (!in_string) fprintf(f, "%c%s", comma, cc);
+      else {
+        fprintf(f, "\",%s", cc);
+        in_string = 0;
+      }
+    }
+    if ((i & 15) == 15) {
+      if (in_string) fputc('"', f);
+      if (i < size) fputc(',', f);
+      fputc('\n', f);
+      in_string = 0;
+      comma = ' ';
+    }
+    else comma = ',';
+  }
+  if (in_string) fputc('"', f);
+  fputc('\n', f);
+}
+
+
+void dump_keytable(FILE *f, struct keytable_entry *kt)
+{
+    fprintf(f, "keytable %s {\n", kt->name);
+    fprintf(f, "  0=\n");
+    dump_keytable_part(f, kt->key_map, kt->sizemap);
+    fprintf(f, "  shift 0=\n");
+    dump_keytable_part(f, kt->shift_map, kt->sizemap);
+    fprintf(f, "  alt 0=\n");
+    dump_keytable_part(f, kt->alt_map, kt->sizemap);
+    fprintf(f, "  numpad 0=\n");
+    dump_keytable_part(f, kt->num_table, kt->sizepad-1);
+    fprintf(f, "  ctrl 0=\n");
+    dump_keytable_part(f, kt->ctrl_map, kt->sizemap);
+    fprintf(f, "  shift-alt 0=\n");
+    dump_keytable_part(f, kt->shift_alt_map, kt->sizemap);
+    fprintf(f, "  ctrl-alt 0=\n");
+    dump_keytable_part(f, kt->ctrl_alt_map, kt->sizemap);
+    fprintf(f, "}\n\n\n");
+}
+
+
