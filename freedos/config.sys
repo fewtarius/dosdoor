@@ -6,5 +6,5 @@ lastdrive=Z
 files=40
 stacks=0
 buffers=10
-device=d:\\dosemu\\emufs.sys
+device=z:\\dosemu\\emufs.sys
 shellhigh=z:\\command.com /e:1024 /p

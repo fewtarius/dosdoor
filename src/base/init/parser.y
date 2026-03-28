@@ -2387,11 +2387,17 @@ parse_dosemu_users(void)
   if (DOSEMU_USERS_FILE == NULL) {
     setenv("DOSEMU_CONF_DIR", "", 1);
   } else if (!exists_file(DOSEMU_USERS_FILE)) {
-    DOSEMU_USERS_FILE = ALTERNATE_ETC "/" DOSEMU_USERS;
-    DOSEMU_LOGLEVEL_FILE = ALTERNATE_ETC "/" DOSEMU_LOGLEVEL;
-    setenv("DOSEMU_CONF_DIR", ALTERNATE_ETC, 1);
+    /* primary path (ALTERNATE_ETC) not found, try /etc as fallback */
+    char *fallback = "/etc/" DOSEMU_USERS;
+    if (exists_file(fallback)) {
+      DOSEMU_USERS_FILE = fallback;
+      DOSEMU_LOGLEVEL_FILE = "/etc/" DOSEMU_LOGLEVEL;
+      setenv("DOSEMU_CONF_DIR", "/etc", 1);
+    } else {
+      setenv("DOSEMU_CONF_DIR", ALTERNATE_ETC, 1);
+    }
   }
-  else setenv("DOSEMU_CONF_DIR", "/etc", 1);
+  else setenv("DOSEMU_CONF_DIR", ALTERNATE_ETC, 1);
 	
   /* we check for some vital global settings
    * which we need before proceeding

@@ -28,8 +28,8 @@
 
 EXTERN char *config_script_name INIT(DEFAULT_CONFIG_SCRIPT);
 EXTERN char *config_script_path INIT(0);
-EXTERN char *dosemu_users_file_path INIT("/etc/" DOSEMU_USERS);
-EXTERN char *dosemu_loglevel_file_path INIT("/etc/" DOSEMU_LOGLEVEL);
+EXTERN char *dosemu_users_file_path INIT(ALTERNATE_ETC "/" DOSEMU_USERS);
+EXTERN char *dosemu_loglevel_file_path INIT(ALTERNATE_ETC "/" DOSEMU_LOGLEVEL);
 EXTERN char *dosemu_rundir_path INIT("~/" LOCALDIR_BASE_NAME "/run");
 EXTERN char *dosemu_localdir_path INIT("~/" LOCALDIR_BASE_NAME);
 

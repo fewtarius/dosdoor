@@ -5907,7 +5907,7 @@ fi
 if test "${with_syshdimagedir+set}" = set; then
   withval=$with_syshdimagedir; syshdimagedir="$withval"
 else
-  syshdimagedir="/var/lib/dosemu"
+  syshdimagedir="${datadir}/dosdoor"
 fi
 
 
