@@ -145,6 +145,12 @@ jobs:
       - name: Download artifacts
         uses: actions/download-artifact@v4
 
+      - name: Parse version from tag
+        id: version
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+
       - name: Rename binaries for release
         run: |
           mv dosdoor-linux-x86_64/dosdoor dosdoor-linux-x86_64/dosdoor-linux-x86_64
@@ -159,3 +165,29 @@ jobs:
             dosdoor-rpm/**/*.rpm
             dosdoor-source/*.tar.gz
           generate_release_notes: true
+
+      - name: Update Homebrew tap
+        env:
+          HOMEBREW_PAT: ${{ secrets.HOMEBREW_PAT }}
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          REPO="${{ github.repository }}"
+          URL="https://github.com/${REPO}/archive/refs/tags/${TAG}.tar.gz"
+
+          # download the source archive and compute sha256
+          curl -sL "$URL" -o /tmp/src.tar.gz
+          SHA=$(sha256sum /tmp/src.tar.gz | awk '{print $1}')
+          echo "Source archive SHA256: ${SHA}"
+
+          git clone "https://x-access-token:${HOMEBREW_PAT}@github.com/fewtarius/homebrew-tap.git" tap-repo
+          cd tap-repo
+
+          sed -i "s|url \".*\"|url \"${URL}\"|"       Formula/dosdoor.rb
+          sed -i "s|sha256 \".*\"|sha256 \"${SHA}\"|" Formula/dosdoor.rb
+
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Formula/dosdoor.rb
+          git diff --cached --quiet && echo "No formula changes needed" && exit 0
+          git commit -m "dosdoor: update to ${TAG}"
+          git push
