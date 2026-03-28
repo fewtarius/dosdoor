@@ -11,10 +11,10 @@ if [ "$OS" = "Darwin" ]; then
     if [ ! -f Makefile.conf ]; then
         cp Makefile.conf.darwin Makefile.conf
         sed -i '' "s|abs_top_srcdir:=.*|abs_top_srcdir:=$(pwd)|" Makefile.conf
-        # apply prefix if provided
-        if [ -n "${PREFIX:-}" ]; then
-            sed -i '' "s|^prefix:=.*|prefix:=${PREFIX}|" Makefile.conf
-        fi
+    fi
+    # apply prefix if provided (even on rebuild)
+    if [ -n "${PREFIX:-}" ]; then
+        sed -i '' "s|^prefix:=.*|prefix:=${PREFIX}|" Makefile.conf
     fi
     [ -f config.status ] || { echo '#!/bin/sh' > config.status; chmod +x config.status; }
     # enable plugins (normally done by configure via mkpluginhooks)
