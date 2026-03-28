@@ -29,6 +29,16 @@ jobs:
           file build/bin/dosdoor
           build/bin/dosdoor --version || true
 
+      - name: Verify source layout
+        run: |
+          chmod +x tests/verify-install.sh
+          tests/verify-install.sh --source
+
+      - name: Verify install layout
+        run: |
+          make install DESTDIR=/tmp/dosdoor-install
+          tests/verify-install.sh /tmp/dosdoor-install/usr
+
       - name: Upload binary
         uses: actions/upload-artifact@v4
         with:
@@ -74,6 +84,16 @@ jobs:
         run: |
           file build/bin/dosdoor
           build/bin/dosdoor --version || true
+
+      - name: Verify source layout
+        run: |
+          chmod +x tests/verify-install.sh
+          tests/verify-install.sh --source
+
+      - name: Verify install layout
+        run: |
+          make install DESTDIR=/tmp/dosdoor-install
+          tests/verify-install.sh /tmp/dosdoor-install/usr/local
 
       - name: Upload binary
         uses: actions/upload-artifact@v4

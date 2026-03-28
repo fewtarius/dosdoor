@@ -35,6 +35,7 @@ rm -rf %{buildroot}
 install -d %{buildroot}%{_bindir}
 install -d %{buildroot}%{_datadir}/%{name}/drive_z/dosemu
 install -d %{buildroot}%{_datadir}/%{name}/drive_z/tmp
+install -d %{buildroot}%{_datadir}/%{name}/drives/c/tmp
 install -d %{buildroot}%{_sysconfdir}/%{name}
 
 # Binary

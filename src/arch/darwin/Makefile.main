@@ -114,6 +114,7 @@ install:
 	if [ -d $(REALTOPDIR)/freedos/tmp ]; then \
 	  $(INSTALL) -d $(DESTDIR)$(dosdoordir)/freedos/tmp; \
 	fi
+	$(INSTALL) -d $(DESTDIR)$(dosdoordir)/drives/c/tmp
 	$(INSTALL) -d $(DESTDIR)$(sysconfdir)
 	if [ ! -f $(DESTDIR)$(sysconfdir)/dosemu.conf ]; then \
 	  $(INSTALL) -m 0644 $(REALTOPDIR)/etc/dosemu.conf $(DESTDIR)$(sysconfdir); \
