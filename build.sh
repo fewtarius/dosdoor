@@ -11,6 +11,10 @@ if [ "$OS" = "Darwin" ]; then
     if [ ! -f Makefile.conf ]; then
         cp Makefile.conf.darwin Makefile.conf
         sed -i '' "s|abs_top_srcdir:=.*|abs_top_srcdir:=$(pwd)|" Makefile.conf
+        # apply prefix if provided
+        if [ -n "${PREFIX:-}" ]; then
+            sed -i '' "s|^prefix:=.*|prefix:=${PREFIX}|" Makefile.conf
+        fi
     fi
     [ -f config.status ] || { echo '#!/bin/sh' > config.status; chmod +x config.status; }
     # enable plugins (normally done by configure via mkpluginhooks)
@@ -31,8 +35,10 @@ else
 #define STDC_HEADERS 1
 #endif
 KBDEOF
+        CONFIGURE_PREFIX="${PREFIX:-/usr}"
         export DOSEMU_DEFAULT_CONFIGURE=1
-        ./configure --prefix=/usr --sysconfdir=/etc/dosdoor \
+        ./configure --prefix="${CONFIGURE_PREFIX}" \
+            --sysconfdir="${CONFIGURE_PREFIX}/etc/dosdoor" \
             --enable-cpuemu --disable-net --without-x --disable-sbemu \
             --disable-mitshm --without-vidmode --disable-aspi \
             --without-gpm --without-alsa --without-sndfile \

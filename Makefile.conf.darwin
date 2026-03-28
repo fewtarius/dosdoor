@@ -2,18 +2,22 @@
 # Makefile.conf for dosdoor on macOS
 # Generated manually - configure doesn't support macOS
 #
+# All paths derive from prefix so Homebrew and custom installs work.
+# Override prefix on the command line or via build.sh:
+#   make prefix=/opt/homebrew
+#
 
 DOSBIN = dosdoor
 
 prefix:=/usr/local
 bindir:=${prefix}/bin
-sysconfdir:=/etc/dosdoor
+sysconfdir:=${prefix}/etc/dosdoor
 libdir:=${prefix}/lib
 datarootdir:=${prefix}/share
 datadir:=${prefix}/share
 mandir:=${prefix}/man
 docdir:=${datadir}/doc/dosdoor
-syshdimagedir:=/var/lib/dosdoor
+syshdimagedir:=${prefix}/var/lib/dosdoor
 x11fontdir:=${datadir}/dosdoor/Xfonts
 fdtarball:=dosemu-freedos-bin.tgz
 abs_top_srcdir:=$(shell pwd)
@@ -40,12 +44,15 @@ else
   INCDIR += -I${top_srcdir}/src/include
 endif
 
+# Detect Homebrew prefix for slang headers/libs
+HOMEBREW_PREFIX:=$(shell brew --prefix 2>/dev/null || echo /usr/local)
+
 CFLAGS:=-Wall -Wstrict-prototypes -Wmissing-declarations -Wnested-externs -O2 -fno-strict-aliasing -Wno-pointer-sign -pipe -Wno-unused-function -Wno-deprecated-non-prototype
 ASFLAGS:=
-CPPFLAGS:= -MP -MMD ${INCDIR} -I/opt/homebrew/include
+CPPFLAGS:= -MP -MMD ${INCDIR} -I$(HOMEBREW_PREFIX)/include
 X_CPPFLAGS:=
-SLANGINC:=-I/opt/homebrew/include
-LDFLAGS:= -L/opt/homebrew/lib
+SLANGINC:=-I$(HOMEBREW_PREFIX)/include
+LDFLAGS:= -L$(HOMEBREW_PREFIX)/lib
 LIBS:= -lm
 X_LIBS:=
 SLANGLIB:= -lslang -lm
