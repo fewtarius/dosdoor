@@ -20,8 +20,26 @@ networking, and other subsystems removed - leaving only what door games need.
 | Legend of the Red Dragon (LORD) | 3.50 | Full serial I/O, ANSI art, gameplay |
 | Barren Realms Elite (BRE) | 0.988 | Full game flow, registration, gameplay |
 | Operation: Overkill II (OOII) | - | Daily maintenance, gameplay |
-| The Simpsons Trivia | 1.2 | Title screen, serial I/O, gameplay |
+| The Simpsons | 1.2 | Title screen, serial I/O, gameplay |
 | Darkness | - | Serial detection, clean launch |
+
+## Installing
+
+### Homebrew (macOS)
+
+```bash
+brew tap fewtarius/tap
+brew install dosdoor
+```
+
+### RPM (Fedora/RHEL)
+
+Download the RPM from the [latest release](https://github.com/fewtarius/dosdoor/releases)
+or build from the spec file:
+
+```bash
+rpmbuild -bb dosdoor.spec
+```
 
 ## Building
 
@@ -49,13 +67,6 @@ cp Makefile.conf.darwin Makefile.conf && make
 ```
 
 The binary is placed at `build/bin/dosdoor`.
-
-### RPM package (Fedora/RHEL)
-
-```bash
-# Requires: rpm-build, gcc, make, flex, bison, slang-devel
-rpmbuild -bb dosdoor.spec
-```
 
 ## Usage
 
