@@ -34,7 +34,6 @@ Elite (BRE), Operation: Overkill II, The Simpsons Trivia, and Darkness.
 rm -rf %{buildroot}
 install -d %{buildroot}%{_bindir}
 install -d %{buildroot}%{_datadir}/%{name}/drive_z/dosemu
-install -d %{buildroot}%{_datadir}/%{name}/drive_z/bin
 install -d %{buildroot}%{_datadir}/%{name}/drive_z/tmp
 install -d %{buildroot}%{_sysconfdir}/%{name}
 
@@ -50,8 +49,33 @@ for f in freedos/dosemu/*.{sys,com}; do
     [ -f "$f" ] && install -m 644 "$f" %{buildroot}%{_datadir}/%{name}/drive_z/dosemu/
 done
 
+# Built commands
+for f in build/commands/*.com; do
+    [ -f "$f" ] && install -m 644 "$f" %{buildroot}%{_datadir}/%{name}/drive_z/dosemu/
+done
+# Symlinks for built command aliases
+cd build/commands && for f in $(find . -type l -name '*.com'); do
+    ln -sf generic.com %{buildroot}%{_datadir}/%{name}/drive_z/dosemu/$(basename "$f")
+done && cd ../..
+
+# FreeDOS hdimage boot files
+install -d %{buildroot}%{_datadir}/%{name}/freedos/dosemu
+install -d %{buildroot}%{_datadir}/%{name}/freedos/tmp
+for f in freedos/*.sys freedos/*.com freedos/*.bat; do
+    [ -f "$f" ] && install -m 644 "$f" %{buildroot}%{_datadir}/%{name}/freedos/
+done
+for f in freedos/dosemu/*; do
+    [ -f "$f" ] && install -m 644 "$f" %{buildroot}%{_datadir}/%{name}/freedos/dosemu/
+done
+
+# Keymap
+install -d %{buildroot}%{_datadir}/%{name}/keymap
+for f in etc/keymap/*; do
+    [ -f "$f" ] && install -m 644 "$f" %{buildroot}%{_datadir}/%{name}/keymap/
+done
+
 # Configuration
-install -m 644 etc/dosemu.conf %{buildroot}%{_sysconfdir}/%{name}/dosdoor.conf
+install -m 644 etc/dosemu.conf %{buildroot}%{_sysconfdir}/%{name}/dosemu.conf
 install -m 644 etc/global.conf %{buildroot}%{_sysconfdir}/%{name}/global.conf
 
 %files
