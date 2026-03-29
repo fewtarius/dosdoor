@@ -17,7 +17,7 @@ networking, and other subsystems removed - leaving only what door games need.
 
 | Game | Version | Status |
 |------|---------|--------|
-| Legend of the Red Dragon (LORD) | 3.50 | Full serial I/O, ANSI art, gameplay |
+| Legend of the Red Dragon (LORD) | 4.02a | Full serial I/O, ANSI art, gameplay |
 | Barren Realms Elite (BRE) | 0.988 | Full game flow, registration, gameplay |
 | Operation: Overkill II (OOII) | - | Daily maintenance, gameplay |
 | The Simpsons | 1.2 | Title screen, serial I/O, gameplay |
